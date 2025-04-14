@@ -1,0 +1,15 @@
+.env
+.venv
+.vscode
+.idea
+.pytest_cache
+.ruff_cache
+dataset
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+MELD.Raw.tar.gz

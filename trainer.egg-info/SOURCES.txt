@@ -1,0 +1,12 @@
+setup.py
+trainer.egg-info/PKG-INFO
+trainer.egg-info/SOURCES.txt
+trainer.egg-info/dependency_links.txt
+trainer.egg-info/top_level.txt
+training/count_parameter.py
+training/install_ffmpeg.py
+training/meld_dataset.py
+training/models.py
+training/test_logging.py
+training/train.py
+training/train_gcp.py
