@@ -1,13 +1,14 @@
-# torch==2.5.1
-# torchaudio==2.5.1
-# torchvision==0.20.1
-transformers>=4.30.0
-openai-whisper>=20231117
-opencv-python>=4.7.0
-# numpy==1.26.4
+torch==2.1.0
+torchvision==0.16.0
+torchaudio==2.1.0
+transformers==4.35.2
+openai-whisper==20240930
+opencv-python==4.8.1.78
+numpy==1.24.3
 nvgpu==0.10.0
-# soundfile==0.12.1
-ffmpeg-python>=0.2.0
-google-cloud-storage>=2.10.0
-google-cloud-aiplatform>=1.30.0
-flask>=2.3.0
+ffmpeg-python==0.2.0
+google-cloud-storage==2.13.0
+google-cloud-aiplatform==1.36.4
+fastapi==0.109.2
+uvicorn==0.27.1
+python-multipart==0.0.9
