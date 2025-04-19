@@ -14,3 +14,4 @@ __pycache__
 
 MELD.Raw.tar.gz
 deployment/model_normalized
+deployment/model_normalized/
