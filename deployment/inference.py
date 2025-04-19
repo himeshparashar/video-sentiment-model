@@ -321,26 +321,125 @@ def predict_fn(input_data, model_dict):
     return {"utterances": predictions}
 
 
-# def process_local_video(video_path, model_dir="model_normalized"):
-#     model_dict = model_fn(model_dir)
+def predict_text(text: str, model_dict):
+    """Analyze sentiment and emotions from text input only"""
+    model = model_dict['model']
+    tokenizer = model_dict['tokenizer']
+    device = model_dict['device']
 
-#     input_data = {'video_path': video_path}
+    # Tokenize the input text
+    text_inputs = tokenizer(
+        text,
+        padding="max_length",
+        truncation=True,
+        max_length=128,
+        return_tensors="pt"
+    )
 
-#     predictions = predict_fn(input_data, model_dict)
+    # Move to device
+    text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
+    
+    # Create dummy video and audio tensors (zeros)
+    dummy_video = torch.zeros(1, 30, 3, 224, 224).to(device)
+    dummy_audio = torch.zeros(1, 1, 64, 300).to(device)
 
-#     for utterance in predictions["utterances"]:
-#         print("\nUtterance:")
-#         print(f"""Start: {utterance['start_time']}s, End: {
-#               utterance['end_time']}s""")
-#         print(f"Text: {utterance['text']}")
-#         print("\n Top Emotions:")
-#         for emotion in utterance['emotions']:
-#             print(f"{emotion['label']}: {emotion['confidence']:.2f}")
-#         print("\n Top Sentiments:")
-#         for sentiment in utterance['sentiments']:
-#             print(f"{sentiment['label']}: {sentiment['confidence']:.2f}")
-#         print("-"*50)
+    # Get predictions
+    with torch.inference_mode():
+        outputs = model(text_inputs, dummy_video, dummy_audio)
+        emotion_probs = torch.softmax(outputs["emotions"], dim=1)[0]
+        sentiment_probs = torch.softmax(outputs["sentiments"], dim=1)[0]
 
+        emotion_values, emotion_indices = torch.topk(emotion_probs, 3)
+        sentiment_values, sentiment_indices = torch.topk(sentiment_probs, 3)
 
-# if __name__ == "__main__":
-#     process_local_video("./dia2_utt3.mp4")
+    return {
+        "text": text,
+        "emotions": [
+            {"label": EMOTION_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(emotion_indices, emotion_values)
+        ],
+        "sentiments": [
+            {"label": SENTIMENT_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(sentiment_indices, sentiment_values)
+        ]
+    }
+
+def predict_video(video_path: str, model_dict):
+    """Analyze sentiment and emotions from video input only"""
+    model = model_dict['model']
+    device = model_dict['device']
+    
+    # Process video frames
+    video_processor = VideoProcessor()
+    video_frames = video_processor.process_video(video_path)
+    video_frames = video_frames.unsqueeze(0).to(device)
+    
+    # Create dummy text and audio tensors
+    dummy_text = model_dict['tokenizer'](
+        "",  # empty text
+        padding="max_length",
+        truncation=True,
+        max_length=128,
+        return_tensors="pt"
+    ).to(device)
+    dummy_audio = torch.zeros(1, 1, 64, 300).to(device)
+    
+    # Get predictions
+    with torch.inference_mode():
+        outputs = model(dummy_text, video_frames, dummy_audio)
+        emotion_probs = torch.softmax(outputs["emotions"], dim=1)[0]
+        sentiment_probs = torch.softmax(outputs["sentiments"], dim=1)[0]
+
+        emotion_values, emotion_indices = torch.topk(emotion_probs, 3)
+        sentiment_values, sentiment_indices = torch.topk(sentiment_probs, 3)
+
+    return {
+        "emotions": [
+            {"label": EMOTION_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(emotion_indices, emotion_values)
+        ],
+        "sentiments": [
+            {"label": SENTIMENT_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(sentiment_indices, sentiment_values)
+        ]
+    }
+
+def predict_audio(video_path: str, model_dict):
+    """Analyze sentiment and emotions from audio input only"""
+    model = model_dict['model']
+    device = model_dict['device']
+    
+    # Process audio
+    audio_processor = AudioProcessor()
+    audio_features = audio_processor.extract_features(video_path)
+    audio_features = audio_features.unsqueeze(0).to(device)
+    
+    # Create dummy text and video tensors
+    dummy_text = model_dict['tokenizer'](
+        "",  # empty text
+        padding="max_length",
+        truncation=True,
+        max_length=128,
+        return_tensors="pt"
+    ).to(device)
+    dummy_video = torch.zeros(1, 30, 3, 224, 224).to(device)
+    
+    # Get predictions
+    with torch.inference_mode():
+        outputs = model(dummy_text, dummy_video, audio_features)
+        emotion_probs = torch.softmax(outputs["emotions"], dim=1)[0]
+        sentiment_probs = torch.softmax(outputs["sentiments"], dim=1)[0]
+
+        emotion_values, emotion_indices = torch.topk(emotion_probs, 3)
+        sentiment_values, sentiment_indices = torch.topk(sentiment_probs, 3)
+
+    return {
+        "emotions": [
+            {"label": EMOTION_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(emotion_indices, emotion_values)
+        ],
+        "sentiments": [
+            {"label": SENTIMENT_MAP[idx.item()], "confidence": conf.item()} 
+            for idx, conf in zip(sentiment_indices, sentiment_values)
+        ]
+    }

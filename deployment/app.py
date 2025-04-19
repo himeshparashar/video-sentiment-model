@@ -2,10 +2,11 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
-from inference import model_fn, predict_fn
+from inference import model_fn, predict_fn, predict_text, predict_audio, predict_video
 import json
 from typing import List, Dict, Any
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
 
 model_dict = None
 
@@ -26,6 +27,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+class TextInput(BaseModel):
+    text: str
 
 @app.post("/analyze")
 async def analyze_video(file: UploadFile = File(...)):
@@ -53,10 +57,58 @@ async def analyze_video(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/analyze-text")
+async def analyze_text(input_data: TextInput):
+    try:
+        # Run prediction using text-only analysis
+        predictions = predict_text(input_data.text, model_dict)
+        return predictions
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/analyze-video-only")
+async def analyze_video_only(file: UploadFile = File(...)):
+    if not file.filename.endswith('.mp4'):
+        raise HTTPException(status_code=400, detail="Only MP4 files are supported")
+    
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        predictions = predict_video(temp_file_path, model_dict)
+        
+        os.unlink(temp_file_path)
+        return predictions
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/analyze-audio-only")
+async def analyze_audio_only(file: UploadFile = File(...)):
+    if not file.filename.endswith('.mp4'):
+        raise HTTPException(status_code=400, detail="Only MP4 files are supported")
+    
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        predictions = predict_audio(temp_file_path, model_dict)
+        
+        os.unlink(temp_file_path)
+        return predictions
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
